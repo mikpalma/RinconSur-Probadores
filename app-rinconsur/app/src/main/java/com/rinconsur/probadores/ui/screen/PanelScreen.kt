@@ -98,5 +98,62 @@ fun PanelScreen(
             contentPadding = PaddingValues(16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
-            ... (60 líneas restantes)
+        ) {
+            // El resumen ocupa todo el ancho de la grilla
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Resumen("Libres", libres, ColoresLibre, Modifier.weight(1f))
+                    Resumen("Ocupados", ocupados.size, ColoresOcupado, Modifier.weight(1f))
+                    Resumen("Con alerta", conAlerta, ColoresAlerta, Modifier.weight(1f))
+                }
+            }
+            items(panel.probadores, key = { it.id }) { p ->
+                ProbadorCard(p, panel.ahora, panel.tiempoAlerta,
+                    onOcupar = { vm.ocupar(p) }, // pasa a OCUPADO sin preguntar nada
+                    onAbrirDetalle = { idDetalle = p.id })
+            }
+        }
+    }
 
+    // ---- Detalle del probador (Bottom Sheet) ----
+    if (detalle != null) {
+        DetalleProbadorSheet(
+            p = detalle, ahora = panel.ahora, tiempoAlerta = panel.tiempoAlerta,
+            onFinalizar = { idPregunta = detalle.id; idDetalle = null },
+            onSolucionar = { vm.solucionarPrenda(detalle); idDetalle = null },
+            onReportar = { idDetalle = null; onReportar(detalle.id) },
+            onCerrar = { idDetalle = null }
+        )
+    }
+
+    // ---- Al finalizar: ¿quedó alguna prenda olvidada? ----
+    if (pregunta != null) {
+        AlertDialog(
+            onDismissRequest = { idPregunta = null },
+            title = { Text("Finalizar uso") },
+            text = { Text("¿Quedó alguna prenda olvidada en el Probador ${pregunta.numero}?") },
+            dismissButton = {
+                TextButton(onClick = { vm.finalizar(pregunta, quedoPrenda = false); idPregunta = null }) { Text("No, está vacío") }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.finalizar(pregunta, quedoPrenda = true)
+                    idPregunta = null
+                    onReportar(pregunta.id) // se pide el reporte
+                }) { Text("Sí, quedó una") }
+            }
+        )
+    }
+}
+
+// Tarjeta del resumen (número grande + nombre)
+@Composable
+private fun Resumen(etiqueta: String, cantidad: Int, colores: ColoresEstado, modifier: Modifier) {
+    Column(
+        modifier.clip(RoundedCornerShape(12.dp)).background(colores.fondo).padding(vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("$cantidad", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = colores.principal)
+        Text(etiqueta, fontSize = 12.sp, color = colores.texto)
+    }
+}

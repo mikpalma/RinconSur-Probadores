@@ -98,4 +98,84 @@ fun ReporteScreen(vm: AppViewModel, ancho: WindowWidthSizeClass, probadorIdInici
     val errorProbador = if (intentado && elegido == null) "Selecciona un probador" else null
     val errorContenido = if (intentado && descripcion.isBlank() && foto == null) "Agrega una descripción o una foto" else null
 
-    ... (82 líneas restantes)
+    fun guardar() {
+        intentado = true
+        if (elegido != null && (descripcion.isNotBlank() || foto != null)) {
+            vm.guardarReporte(elegido, descripcion, foto, onListo = onProbadores)
+        }
+    }
+
+    PantallaConNavegacion(
+        ancho = ancho,
+        seleccionado = 1,
+        esAdmin = usuario.rol == Rol.ADMINISTRADOR,
+        onProbadores = onProbadores,
+        onReporte = {},
+        onCambiarSede = vm::cambiarSede,
+        onAdministracion = onAdministracion,
+        onCerrarSesion = vm::cerrarSesion,
+        topBar = { AppTopBar("Sede: ${panel.sede?.nombre ?: ""}", usuario, vm::cerrarSesion) }
+    ) { padding ->
+        Column(
+            Modifier.padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text("Registrar prenda olvidada", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+
+            // --- Foto: cámara o galería ---
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(
+                    onClick = { val uri = CamaraUtils.crearUriFoto(context); uriCamara = uri; camara.launch(uri) },
+                    modifier = Modifier.weight(1f).height(56.dp), shape = RoundedCornerShape(12.dp)
+                ) { Icon(Icons.Filled.PhotoCamera, null, Modifier.size(20.dp)); Text("  Tomar foto") }
+                OutlinedButton(
+                    onClick = { galeria.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                    modifier = Modifier.weight(1f).height(56.dp), shape = RoundedCornerShape(12.dp)
+                ) { Icon(Icons.Filled.PhotoLibrary, null, Modifier.size(20.dp)); Text("  De la galería") }
+            }
+
+            // Vista previa con "X" para quitar la foto
+            foto?.let { uri ->
+                Box(Modifier.size(110.dp)) {
+                    AsyncImage(model = uri, contentDescription = "Foto de la prenda", contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp)))
+                    IconButton(onClick = { foto = null },
+                        modifier = Modifier.align(Alignment.TopEnd).size(26.dp).background(Color(0xCC000000), CircleShape)) {
+                        Icon(Icons.Filled.Close, "Quitar foto", tint = Color.White, modifier = Modifier.size(14.dp))
+                    }
+                }
+            }
+
+            // --- Probador de la sede ---
+            ExposedDropdownMenuBox(expanded = menu, onExpandedChange = { menu = it }) {
+                OutlinedTextField(
+                    value = elegido?.let { "Probador ${it.numero}" } ?: "",
+                    onValueChange = {}, readOnly = true,
+                    label = { Text("Probador") }, placeholder = { Text("Selecciona un probador") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menu) },
+                    isError = errorProbador != null,
+                    supportingText = if (errorProbador != null) { { Text(errorProbador) } } else null,
+                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                )
+                ExposedDropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    elegibles.forEach { p ->
+                        DropdownMenuItem(text = { Text("Probador ${p.numero}") }, onClick = { probadorId = p.id; menu = false })
+                    }
+                }
+            }
+            if (elegibles.isEmpty()) {
+                Text("No hay probadores ocupados ni con prenda olvidada en esta sede.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
+
+            // --- Descripción ---
+            CampoFormulario(descripcion, { descripcion = it }, "Descripción (opcional)",
+                placeholder = "Ej: polera negra, chaqueta, etc.", singleLine = false, minLines = 3, error = errorContenido)
+
+            Button(onClick = ::guardar, enabled = elegibles.isNotEmpty(),
+                modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(12.dp)) {
+                Text("REGISTRAR REPORTE", fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Carpeta donde se guardan las fotos de prendas olvidadas -->
+    <external-files-path name="fotos_externas" path="Pictures/" />
+    <files-path name="fotos_internas" path="Pictures/" />
+</paths>
